@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: arm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: arm_db
+      POSTGRES_USER: arm_user
+      POSTGRES_PASSWORD: arm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arm_user -d arm_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: arm_web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://arm_user:arm_password@db:5432/arm_db
+      FLASK_ENV: development
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    command: python web/app.py
+
+volumes:
+  postgres_data:

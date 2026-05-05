@@ -1,0 +1,9 @@
+Metric,Value
+Algorithm,FP-Growth + Apriori Rule Generator
+min_support,100
+min_confidence,0.5
+Total Transactions,14070
+Unique Items,177
+Total Itemsets,1167
+Total Rules,457
+Execution Time (seconds),1.8219

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Khai phá – ARM Demo{% endblock %}
+
+{% block content %}
+<div class="page-title">Khai phá Itemsets & Rules</div>
+<div class="page-sub">Chạy thuật toán khai phá và quản lý kết quả</div>
+
+<!-- Run form -->
+<div class="card mb-4">
+  <div class="card-title">⚙️ Cấu hình & Chạy thuật toán</div>
+  <div class="row">
+    <div class="col">
+      <div class="form-group">
+        <label>Thuật toán</label>
+        <select id="m-algo">
+          <option value="apriori">Apriori (basic)</option>
+          <option value="apriori_ht">Apriori + Hash Tree</option>
+          <option value="fpgrowth">FP-Growth</option>
+        </select>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label>Min Support (số giao dịch tuyệt đối)</label>
+        <input type="number" id="m-minsup" value="100" min="10">
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-group">
+        <label>Min Confidence (0–1)</label>
+        <input type="number" id="m-minconf" value="0.5" step="0.05" min="0.01" max="1">
+      </div>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <button class="btn btn-primary" id="run-btn" onclick="runMining()">
+      ⚙️ Chạy khai phá
+    </button>
+    <div id="run-status" style="font-size:13px;color:var(--muted);align-self:center"></div>
+  </div>
+</div>
+
+<!-- Runs history -->
+<div class="card">
+  <div class="card-title">📋 Lịch sử khai phá</div>
+  {% if runs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Thuật toán</th><th>Min Sup</th><th>Min Conf</th>
+          <th>Giao dịch</th><th>Itemsets</th><th>Rules</th>
+          <th>Thời gian</th><th>Chạy lúc</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="runs-tbody">
+        {% for run in runs %}
+        <tr id="run-{{ run.id }}">
+          <td>{{ run.id }}</td>
+          <td>
+            {% if run.algorithm == 'apriori' %}
+              <span class="badge badge-apriori">Apriori</span>
+            {% elif run.algorithm == 'apriori_ht' %}
+              <span class="badge badge-ht">Apriori+HT</span>
+            {% else %}
+              <span class="badge badge-fpgrowth">FP-Growth</span>
+            {% endif %}
+          </td>
+          <td>{{ run.min_support }}</td>
+          <td>{{ run.min_confidence }}</td>
+          <td>{{ run.n_transactions }}</td>
+          <td>{{ run.n_itemsets }}</td>
+          <td>{{ run.n_rules }}</td>
+          <td>{{ "%.2f"|format(run.exec_time) }}s</td>
+          <td style="color:var(--muted);font-size:12px">{{ run.ran_at.strftime('%H:%M %d/%m') }}</td>
+          <td class="flex gap-2">
+            <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:4px 10px;font-size:12px">
+              Xem →
+            </a>
+            <button class="btn btn-danger" style="padding:4px 10px;font-size:12px"
+                    onclick="deleteRun({{ run.id }})">✕</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">⚙️</div>
+    <div>Chưa có lần khai phá nào. Hãy chạy thuật toán ở trên!</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runMining() {
+  const btn = document.getElementById('run-btn');
+  const status = document.getElementById('run-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Đang chạy...';
+  status.textContent = 'Vui lòng chờ...';
+
+  try {
+    const data = await apiCall('/api/mine', {
+      method: 'POST',
+      body: JSON.stringify({
+        algorithm:      document.getElementById('m-algo').value,
+        min_support:    +document.getElementById('m-minsup').value,
+        min_confidence: +document.getElementById('m-minconf').value,
+      })
+    });
+    showToast(`✓ ${data.n_itemsets} itemsets | ${data.n_rules} rules | ${data.exec_time}s`);
+    status.innerHTML = `<span style="color:var(--green)">✓ Hoàn tất: ${data.n_itemsets} itemsets, ${data.n_rules} rules (${data.exec_time}s)</span>`;
+    setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    showToast(e.message, 'error');
+    status.innerHTML = `<span style="color:var(--accent2)">✗ ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚙️ Chạy khai phá';
+  }
+}
+
+async function deleteRun(id) {
+  if (!confirm(`Xóa lần khai phá #${id} và toàn bộ kết quả?`)) return;
+  try {
+    await apiCall(`/api/runs/${id}`, {method:'DELETE'});
+    document.getElementById('run-' + id).remove();
+    showToast('✓ Đã xóa');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+</script>
+{% endblock %}

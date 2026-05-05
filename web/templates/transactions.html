@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Giao dịch – ARM Demo{% endblock %}
+
+{% block content %}
+<div class="flex gap-2 mb-4">
+  <div>
+    <div class="page-title">Giao dịch</div>
+    <div class="page-sub">Quản lý dữ liệu giao dịch trong database</div>
+  </div>
+  <div class="ml-auto flex gap-2">
+    <button class="btn btn-ghost" onclick="document.getElementById('import-modal').style.display='flex'">
+      📂 Import pkl
+    </button>
+    <button class="btn btn-primary" onclick="document.getElementById('add-modal').style.display='flex'">
+      ＋ Thêm giao dịch
+    </button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-title">Danh sách giao dịch ({{ txs.total }} tổng cộng)</div>
+  {% if txs.items %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Invoice No</th><th>Số items</th><th>Items</th><th>Nguồn</th><th>Ngày tạo</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for tx in txs.items %}
+        <tr id="row-{{ tx.id }}">
+          <td>{{ tx.id }}</td>
+          <td><strong>{{ tx.invoice_no }}</strong></td>
+          <td>{{ tx.items|length }}</td>
+          <td style="max-width:400px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+            {{ tx.items | join(', ') }}
+          </td>
+          <td><span class="badge badge-{{ tx.source }}">{{ tx.source }}</span></td>
+          <td style="color:var(--muted);font-size:12px">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>
+            <button class="btn btn-danger" style="padding:4px 10px;font-size:12px"
+                    onclick="deleteTx({{ tx.id }})">✕</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    {% if txs.has_prev %}
+    <a class="page-link" href="{{ url_for('transactions_page', page=txs.prev_num) }}">‹</a>
+    {% endif %}
+    {% for p in txs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a class="page-link {% if p == txs.page %}active{% endif %}"
+           href="{{ url_for('transactions_page', page=p) }}">{{ p }}</a>
+      {% else %}
+        <span class="page-link">…</span>
+      {% endif %}
+    {% endfor %}
+    {% if txs.has_next %}
+    <a class="page-link" href="{{ url_for('transactions_page', page=txs.next_num) }}">›</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">🧾</div>
+    <div>Chưa có giao dịch. Hãy thêm hoặc import dữ liệu!</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Modal: Thêm giao dịch ──────────────────────────────────────── -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center">
+  <div class="card" style="width:480px;max-height:90vh;overflow-y:auto">
+    <div class="flex gap-2 mb-4">
+      <div class="card-title" style="margin:0">Thêm giao dịch mới</div>
+      <button class="ml-auto btn btn-ghost" style="padding:4px 10px" onclick="document.getElementById('add-modal').style.display='none'">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Invoice No</label>
+      <input type="text" id="new-invoice" placeholder="Ví dụ: INV-999">
+    </div>
+    <div class="form-group">
+      <label>Items (mỗi item một dòng hoặc phân cách bằng dấu phẩy)</label>
+      <textarea id="new-items" rows="5" placeholder="WHITE HANGING HEART T-LIGHT HOLDER&#10;RED WOOLLY HOTTIE WHITE HEART.&#10;SET 7 BABUSHKA NESTING BOXES"></textarea>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="addTransaction()">Thêm</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('add-modal').style.display='none'">Hủy</button>
+    </div>
+    <div id="add-result" style="margin-top:12px;font-size:13px"></div>
+  </div>
+</div>
+
+<!-- ── Modal: Import pkl ───────────────────────────────────────────── -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center">
+  <div class="card" style="width:420px">
+    <div class="flex gap-2 mb-4">
+      <div class="card-title" style="margin:0">Import từ pkl</div>
+      <button class="ml-auto btn btn-ghost" style="padding:4px 10px" onclick="document.getElementById('import-modal').style.display='none'">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+      Import <code>data/processed/transaction_list.pkl</code> vào DB.<br>
+      ⚠️ Các giao dịch <em>imported</em> cũ sẽ bị xóa.
+    </p>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="importData()">Import</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('import-modal').style.display='none'">Hủy</button>
+    </div>
+    <div id="import-result" style="margin-top:12px;font-size:13px"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addTransaction() {
+  const invoice = document.getElementById('new-invoice').value.trim();
+  const raw     = document.getElementById('new-items').value;
+  const items   = raw.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
+  const el      = document.getElementById('add-result');
+
+  if (!invoice || !items.length) {
+    showToast('Vui lòng nhập Invoice No và ít nhất 1 item', 'error'); return;
+  }
+  try {
+    const d = await apiCall('/api/transactions', {
+      method: 'POST',
+      body: JSON.stringify({invoice_no: invoice, items})
+    });
+    showToast(`✓ Đã thêm ${invoice}`);
+    el.style.color = 'var(--green)';
+    el.textContent = `✓ Thêm thành công ${invoice} (${items.length} items)`;
+    document.getElementById('new-invoice').value = '';
+    document.getElementById('new-items').value   = '';
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    showToast(e.message, 'error');
+    el.style.color = 'var(--accent2)';
+    el.textContent = '✗ ' + e.message;
+  }
+}
+
+async function deleteTx(id) {
+  if (!confirm('Xóa giao dịch #' + id + '?')) return;
+  try {
+    await apiCall(`/api/transactions/${id}`, {method:'DELETE'});
+    document.getElementById('row-' + id).remove();
+    showToast('✓ Đã xóa');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function importData() {
+  const el = document.getElementById('import-result');
+  el.textContent = 'Đang import...';
+  try {
+    const d = await apiCall('/api/transactions/import', {method:'POST'});
+    showToast(`✓ Đã import ${d.imported} transactions`);
+    el.style.color = 'var(--green)';
+    el.textContent = `✓ Đã import ${d.imported} giao dịch`;
+    setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    showToast(e.message, 'error');
+    el.style.color = 'var(--accent2)';
+    el.textContent = '✗ ' + e.message;
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{
+  "Algorithm": "FP-Growth + Apriori Rule Generator",
+  "Parameters": {
+    "min_support": 100,
+    "min_confidence": 0.5
+  },
+  "Data": {
+    "total_transactions": 14070,
+    "unique_items": 177,
+    "avg_transaction_size": 7.6739161336176265,
+    "min_transaction_size": 2,
+    "max_transaction_size": 58
+  },
+  "Itemsets": {
+    "total_itemsets": 1167,
+    "itemset_stats": [
+      {
+        "Size": 1,
+        "Count": 177
+      },
+      {
+        "Size": 2,
+        "Count": 760
+      },
+      {
+        "Size": 3,
+        "Count": 198
+      },
+      {
+        "Size": 4,
+        "Count": 31
+      },
+      {
+        "Size": 5,
+        "Count": 1
+      }
+    ],
+    "support": {
+      "min": 100.0,
+      "max": 2904.0,
+      "mean": 227.1559554413025,
+      "median": 144.0,
+      "std": 204.54576426710508
+    }
+  },
+  "Rules": {
+    "total_rules": 457,
+    "confidence": {
+      "min": 0.5,
+      "max": 0.9344262295081968,
+      "mean": 0.6158606334317855
+    },
+    "lift": {
+      "min": 0.00018314295239599235,
+      "max": 0.002679641774204922,
+      "mean": 0.0007836118067120244
+    }
+  },
+  "Performance": {
+    "execution_time_seconds": 1.8219172954559326
+  }
+}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Rules – Run #{{ run.id }} – ARM Demo{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex gap-2 mb-4">
+  <div>
+    <div class="page-title">Association Rules</div>
+    <div class="page-sub">
+      Run #{{ run.id }} &bull;
+      {% if run.algorithm == 'apriori' %}Apriori
+      {% elif run.algorithm == 'apriori_ht' %}Apriori + Hash Tree
+      {% else %}FP-Growth{% endif %}
+      &bull; min_sup={{ run.min_support }} &bull; min_conf={{ run.min_confidence }}
+    </div>
+  </div>
+  <div class="ml-auto">
+    <a href="{{ url_for('mining_page') }}" class="btn btn-ghost">← Quay lại</a>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="stat-grid mb-4" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stat-card">
+    <div class="stat-label">Giao dịch</div>
+    <div class="stat-value accent">{{ run.n_transactions }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Frequent Itemsets</div>
+    <div class="stat-value green">{{ run.n_itemsets }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Association Rules</div>
+    <div class="stat-value yellow">{{ run.n_rules }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Thời gian chạy</div>
+    <div class="stat-value accent2">{{ "%.2f"|format(run.exec_time) }}s</div>
+  </div>
+</div>
+
+<!-- Sort & search bar -->
+<div class="card mb-4" style="padding:14px 20px">
+  <div class="flex gap-2">
+    <span style="font-size:13px;color:var(--muted);align-self:center">Sắp xếp theo:</span>
+    <a href="{{ url_for('rules_page', run_id=run.id, sort='confidence') }}"
+       class="btn btn-ghost {% if sort=='confidence' %}btn-primary{% endif %}"
+       style="padding:6px 12px;font-size:12px">Confidence</a>
+    <a href="{{ url_for('rules_page', run_id=run.id, sort='lift') }}"
+       class="btn btn-ghost {% if sort=='lift' %}btn-primary{% endif %}"
+       style="padding:6px 12px;font-size:12px">Lift</a>
+    <a href="{{ url_for('rules_page', run_id=run.id, sort='support') }}"
+       class="btn btn-ghost {% if sort=='support' %}btn-primary{% endif %}"
+       style="padding:6px 12px;font-size:12px">Support</a>
+    <div class="ml-auto" style="font-size:13px;color:var(--muted)">
+      Trang {{ rules.page }}/{{ rules.pages }} ({{ rules.total }} rules)
+    </div>
+  </div>
+</div>
+
+<!-- Rules table -->
+<div class="card">
+  {% if rules.items %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Antecedent (nếu mua...)</th>
+          <th>→</th>
+          <th>Consequent (thì mua...)</th>
+          <th>Support</th>
+          <th>Confidence</th>
+          <th>Lift</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules.items %}
+        <tr>
+          <td style="color:var(--muted)">{{ loop.index + (rules.page-1)*25 }}</td>
+          <td>
+            {% for item in rule.antecedent %}
+              <span style="display:inline-block;background:rgba(108,99,255,.12);color:var(--accent);
+                            padding:2px 7px;border-radius:4px;font-size:11px;margin:1px">
+                {{ item }}
+              </span>
+            {% endfor %}
+          </td>
+          <td style="color:var(--muted);font-size:18px">→</td>
+          <td>
+            {% for item in rule.consequent %}
+              <span style="display:inline-block;background:rgba(67,217,173,.12);color:var(--green);
+                            padding:2px 7px;border-radius:4px;font-size:11px;margin:1px">
+                {{ item }}
+              </span>
+            {% endfor %}
+          </td>
+          <td>{{ rule.support }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:60px;height:6px;background:var(--surface2);border-radius:3px">
+                <div style="width:{{ (rule.confidence*100)|round|int }}%;height:100%;background:var(--accent);border-radius:3px"></div>
+              </div>
+              {{ "%.3f"|format(rule.confidence) }}
+            </div>
+          </td>
+          <td>
+            <span style="color:{% if rule.lift > 2 %}var(--green){% elif rule.lift > 1 %}var(--yellow){% else %}var(--accent2){% endif %}">
+              {{ "%.3f"|format(rule.lift) }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    {% if rules.has_prev %}
+    <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.prev_num, sort=sort) }}">‹</a>
+    {% endif %}
+    {% for p in rules.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a class="page-link {% if p == rules.page %}active{% endif %}"
+           href="{{ url_for('rules_page', run_id=run.id, page=p, sort=sort) }}">{{ p }}</a>
+      {% else %}
+        <span class="page-link">…</span>
+      {% endif %}
+    {% endfor %}
+    {% if rules.has_next %}
+    <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.next_num, sort=sort) }}">›</a>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">📋</div>
+    <div>Không có rules nào thỏa mãn điều kiện.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

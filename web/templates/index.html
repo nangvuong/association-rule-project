@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – ARM Demo{% endblock %}
+
+{% block content %}
+<div class="page-title">Dashboard</div>
+<div class="page-sub">Tổng quan hệ thống Association Rule Mining</div>
+
+<!-- Stat cards -->
+<div class="stat-grid" id="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Giao dịch</div>
+    <div class="stat-value accent">{{ total_tx }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Lần khai phá</div>
+    <div class="stat-value green">{{ total_runs }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Frequent Itemsets</div>
+    <div class="stat-value yellow" id="stat-itemsets">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Association Rules</div>
+    <div class="stat-value accent2" id="stat-rules">—</div>
+  </div>
+</div>
+
+<!-- Quick mine panel -->
+<div class="row mb-4">
+  <div class="col">
+    <div class="card">
+      <div class="card-title">⚡ Khai phá nhanh</div>
+      <div class="row">
+        <div class="col">
+          <div class="form-group">
+            <label>Thuật toán</label>
+            <select id="q-algo">
+              <option value="apriori">Apriori</option>
+              <option value="apriori_ht">Apriori + Hash Tree</option>
+              <option value="fpgrowth">FP-Growth</option>
+            </select>
+          </div>
+        </div>
+        <div class="col">
+          <div class="form-group">
+            <label>Min Support</label>
+            <input type="number" id="q-minsup" value="10" min="1">
+          </div>
+        </div>
+        <div class="col">
+          <div class="form-group">
+            <label>Min Confidence</label>
+            <input type="number" id="q-minconf" value="0.5" step="0.05" min="0.01" max="1">
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="q-mine-btn" onclick="quickMine()">
+        ⚙️ Chạy khai phá
+      </button>
+      <div id="q-result" style="margin-top:14px;font-size:13px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="card-title">📥 Import dữ liệu</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Import toàn bộ transactions từ file <code>data/processed/transaction_list.pkl</code> vào database.
+      </p>
+      <button class="btn btn-ghost" onclick="importData()">📂 Import từ pkl</button>
+      <div id="import-result" style="margin-top:12px;font-size:13px;color:var(--muted)"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Latest runs -->
+<div class="card">
+  <div class="card-title">🕒 Lần khai phá gần đây</div>
+  {% if latest_runs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Thuật toán</th><th>Min Sup</th><th>Min Conf</th>
+          <th>Itemsets</th><th>Rules</th><th>Thời gian</th><th>Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in latest_runs %}
+        <tr>
+          <td>{{ run.id }}</td>
+          <td>
+            {% if run.algorithm == 'apriori' %}
+              <span class="badge badge-apriori">Apriori</span>
+            {% elif run.algorithm == 'apriori_ht' %}
+              <span class="badge badge-ht">Apriori+HT</span>
+            {% else %}
+              <span class="badge badge-fpgrowth">FP-Growth</span>
+            {% endif %}
+          </td>
+          <td>{{ run.min_support }}</td>
+          <td>{{ run.min_confidence }}</td>
+          <td>{{ run.n_itemsets }}</td>
+          <td>{{ run.n_rules }}</td>
+          <td>{{ "%.2f"|format(run.exec_time) }}s</td>
+          <td>
+            <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:4px 10px;font-size:12px">
+              Xem rules →
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">⚙️</div>
+    <div>Chưa có lần khai phá nào. Hãy chạy khai phá để bắt đầu!</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load thêm stats
+fetch('/api/stats').then(r=>r.json()).then(d=>{
+  document.getElementById('stat-itemsets').textContent = d.total_itemsets.toLocaleString();
+  document.getElementById('stat-rules').textContent    = d.total_rules.toLocaleString();
+});
+
+async function quickMine() {
+  const btn = document.getElementById('q-mine-btn');
+  const res = document.getElementById('q-result');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Đang chạy...';
+  res.textContent = '';
+  try {
+    const data = await apiCall('/api/mine', {
+      method: 'POST',
+      body: JSON.stringify({
+        algorithm:      document.getElementById('q-algo').value,
+        min_support:    +document.getElementById('q-minsup').value,
+        min_confidence: +document.getElementById('q-minconf').value,
+      })
+    });
+    showToast(`✓ Hoàn tất: ${data.n_rules} rules | ${data.exec_time}s`);
+    res.innerHTML = `✓ <strong>${data.n_itemsets}</strong> itemsets &bull; <strong>${data.n_rules}</strong> rules &bull; ${data.exec_time}s
+      &nbsp;<a href="/rules/${data.run_id}" style="color:var(--accent)">Xem kết quả →</a>`;
+    setTimeout(() => location.reload(), 2000);
+  } catch(e) {
+    showToast(e.message, 'error');
+    res.style.color = 'var(--accent2)';
+    res.textContent = '✗ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚙️ Chạy khai phá';
+  }
+}
+
+async function importData() {
+  const el = document.getElementById('import-result');
+  el.textContent = 'Đang import...';
+  try {
+    const d = await apiCall('/api/transactions/import', {method:'POST'});
+    showToast(`✓ Đã import ${d.imported} transactions`);
+    el.style.color = 'var(--green)';
+    el.textContent = `✓ Đã import ${d.imported} giao dịch`;
+    setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    showToast(e.message, 'error');
+    el.style.color = 'var(--accent2)';
+    el.textContent = '✗ ' + e.message;
+  }
+}
+</script>
+{% endblock %}

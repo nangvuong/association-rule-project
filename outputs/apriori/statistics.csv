@@ -1,0 +1,25 @@
+﻿Metric,Value
+Algorithm,Apriori
+Timestamp,2026-05-05T09:33:12.985074
+Total Transactions,14070
+Unique Items,177
+Avg Transaction Size,7.67
+Min Transaction Size,2
+Max Transaction Size,58
+Min Support (threshold),100
+Min Confidence (threshold),0.5
+Use Hash Tree,True
+Total Itemsets Found,1167
+Total Rules Generated,457
+Execution Time (seconds),4.4978
+Support - Min,100.00
+Support - Max,2904.00
+Support - Mean,227.16
+Support - Median,144.00
+Support - Std Dev,204.55
+Confidence - Min,0.5000
+Confidence - Max,0.9344
+Confidence - Mean,0.6159
+Lift - Min,2.5768
+Lift - Max,37.7026
+Lift - Mean,11.0254

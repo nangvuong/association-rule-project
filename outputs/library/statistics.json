@@ -1,0 +1,30 @@
+{
+  "Algorithm Comparison": {
+    "Apriori": {
+      "itemsets": 1167,
+      "execution_time": 2.0878610610961914,
+      "1-itemsets": 177,
+      "2-itemsets": 760,
+      "max_itemset_size": 5
+    },
+    "FP-Growth": {
+      "itemsets": 1167,
+      "execution_time": 0.36830592155456543,
+      "1-itemsets": 177,
+      "2-itemsets": 760,
+      "max_itemset_size": 5
+    }
+  },
+  "Parameters": {
+    "min_support_count": 100,
+    "min_support_relative": 0.007107320540156361,
+    "min_confidence": 0.5,
+    "n_transactions": 14070,
+    "n_items": 177
+  },
+  "Rules": {
+    "total_rules": 457,
+    "avg_confidence": 0.6158606334317855,
+    "avg_lift": 11.025418120438182
+  }
+}
