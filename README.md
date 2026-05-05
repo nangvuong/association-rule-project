@@ -12,7 +12,6 @@ Hệ thống **khai phá luật kết hợp (Association Rule Mining)** hoàn ch
 - [Các Thành Phần Chính](#các-thành-phần-chính)
 - [Ví Dụ](#ví-dụ)
 - [Kết Quả Đầu Ra](#kết-quả-đầu-ra)
-- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -436,47 +435,6 @@ antecedent,consequent,support,confidence,lift,leverage,conviction
 ```
 
 ---
-
-## 🐛 Troubleshooting
-
-### ❌ Lỗi: `ModuleNotFoundError: No module named 'flask_cors'`
-**Giải pháp**:
-```bash
-pip install flask-cors
-```
-
-### ❌ Lỗi: `psycopg2.OperationalError: connection to server failed`
-**Nguyên nhân**: PostgreSQL chưa khởi động  
-**Giải pháp**:
-```bash
-docker compose up -d db
-sleep 2  # Chờ database sẵn sàng
-python web/app.py
-```
-
-### ❌ Lỗi: `FATAL: password authentication failed for user "arm_user"`
-**Nguyên nhân**: Database credentials sai  
-**Giải pháp**: Kiểm tra `.env`:
-```bash
-DATABASE_URL="postgresql://arm_user:arm_password@localhost:5432/arm_db"
-```
-
-### ❌ Lỗi: `FileNotFoundError: data/raw/online_retail_II.xlsx`
-**Giải pháp**: Script sẽ tự động tải từ UCI nếu file không tồn tại:
-```python
-from src.preprocessing import DataLoader
-loader = DataLoader()
-df = loader.load()  # Tự động tải nếu cần
-```
-
-### ❌ Lỗi: Kết quả Apriori vs FP-Growth không giống nhau
-**Kiểm tra**:
-1. `min_support` có giống nhau không?
-2. `min_confidence` có giống nhau không?
-3. Kiểm tra `use_hash_tree` có ảnh hưởng không?
-
----
-
 ## 📚 Thêm Thông Tin
 
 ### Jupyter Notebooks
