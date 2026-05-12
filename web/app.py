@@ -425,17 +425,24 @@ def api_upload_transactions():
 @app.route("/api/mine", methods=["POST"])
 def api_mine():
     """Chạy thuật toán khai phá.
-    Body: {"algorithm": "apriori|apriori_ht|fpgrowth",
-           "min_support": 100, "min_confidence": 0.5}
+    Body: {"algorithm": "apriori_ht",
+           "min_support_pct": 1.07, "min_confidence": 0.6}
     """
-    data           = request.get_json(force=True)
-    algorithm      = data.get("algorithm", "apriori")
-    min_support    = int(data.get("min_support", 100))
-    min_confidence = float(data.get("min_confidence", 0.5))
-    use_hash_tree  = algorithm == "apriori_ht"
+    import math
 
-    if min_support < 1:
-        return jsonify({"error": "min_support phải >= 1"}), 400
+    data           = request.get_json(force=True)
+    algorithm      = data.get("algorithm", "apriori_ht")
+    min_confidence = float(data.get("min_confidence", 0.6))
+    use_hash_tree  = algorithm in ("apriori_ht", "apriori")
+
+    # Tính min_support từ phần trăm
+    n_transactions = Transaction.query.count()
+    if n_transactions == 0:
+        return jsonify({"error": "Không có giao dịch nào trong database."}), 400
+
+    min_support_pct = float(data.get("min_support_pct", 1.07))
+    min_support = max(1, math.ceil(n_transactions * min_support_pct / 100))
+
     if not (0 < min_confidence <= 1):
         return jsonify({"error": "min_confidence phải trong (0, 1]"}), 400
 

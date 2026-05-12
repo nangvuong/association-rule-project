@@ -9,32 +9,24 @@
 
 <!-- Run form -->
 <div class="card mb-4">
-  <div class="card-title">⚙️ Cấu hình & chạy thuật toán</div>
-  <div class="row" style="gap:14px">
-    <div class="col">
-      <div class="form-group">
-        <label>Thuật toán</label>
-        <select id="m-algo">
-          <option value="apriori">Apriori (basic)</option>
-          <option value="apriori_ht">Apriori + Hash Tree</option>
-          <option value="fpgrowth">FP-Growth</option>
-        </select>
+  <div class="card-title">⚙️ Khai phá luật kết hợp</div>
+  <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:13px">Thuật toán:</span>
+        <span class="badge badge-ht">Apriori + Hash Tree</span>
       </div>
-    </div>
-    <div class="col">
-      <div class="form-group">
-        <label>Min Support (tuyệt đối)</label>
-        <input type="number" id="m-minsup" value="100" min="10">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:13px">Min Support:</span>
+        <span style="font-weight:600;color:var(--text)">1.07%</span>
       </div>
-    </div>
-    <div class="col">
-      <div class="form-group">
-        <label>Min Confidence (0–1)</label>
-        <input type="number" id="m-minconf" value="0.5" step="0.05" min="0.01" max="1">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:13px">Min Confidence:</span>
+        <span style="font-weight:600;color:var(--text)">0.6</span>
       </div>
     </div>
   </div>
-  <div class="flex gap-2">
+  <div class="flex gap-2" style="margin-top:16px">
     <button class="btn btn-primary" id="run-btn" onclick="runMining()">
       ⚙️ Chạy khai phá
     </button>
@@ -110,9 +102,9 @@ async function runMining() {
     const data = await apiCall('/api/mine', {
       method: 'POST',
       body: JSON.stringify({
-        algorithm:      document.getElementById('m-algo').value,
-        min_support:    +document.getElementById('m-minsup').value,
-        min_confidence: +document.getElementById('m-minconf').value,
+        algorithm:      'apriori_ht',
+        min_support_pct: 1.07,
+        min_confidence:  0.6,
       })
     });
     showToast(`✓ ${data.n_itemsets} itemsets | ${data.n_rules} rules | ${data.exec_time}s`);
