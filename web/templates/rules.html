@@ -1,17 +1,200 @@
 {% extends "base.html" %}
 {% block title %}Rules – Run #{{ run.id }} – ARM Demo{% endblock %}
 
+{% block head %}
+<style>
+  /* ── View toggle ────────────────────────────────────────────────── */
+  .view-toggle { display: flex; gap: 4px; background: var(--surface2); border-radius: 10px; padding: 3px; }
+  .view-btn {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: none; background: transparent; color: var(--muted);
+    transition: all .2s;
+  }
+  .view-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(124,108,255,.3); }
+  .view-btn:hover:not(.active) { color: var(--text); }
+
+  /* ── Sort bar ───────────────────────────────────────────────────── */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 14px 20px; flex-wrap: wrap;
+  }
+  .sort-btn {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted); transition: all .2s;
+  }
+  .sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sort-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(124,108,255,.25);
+  }
+
+  /* ── Rule cards ─────────────────────────────────────────────────── */
+  .rules-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+  .rule-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 0; overflow: hidden;
+    transition: all .25s ease; position: relative;
+  }
+  .rule-card:hover {
+    border-color: rgba(124,108,255,.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,.25);
+    transform: translateY(-1px);
+  }
+
+  /* Card top accent */
+  .rule-card-accent {
+    height: 3px; width: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    opacity: 0; transition: opacity .25s;
+  }
+  .rule-card:hover .rule-card-accent { opacity: 1; }
+
+  .rule-card-body { padding: 20px 24px; }
+
+  /* Number badge */
+  .rule-num {
+    position: absolute; top: 14px; right: 16px;
+    font-size: 11px; font-weight: 700; color: var(--muted); opacity: .5;
+  }
+
+  /* Flow layout: antecedent → consequent */
+  .rule-flow {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .flow-group { display: flex; flex-direction: column; gap: 6px; }
+  .flow-group-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; display: flex; align-items: center; gap: 5px;
+  }
+  .flow-group-label.buy { color: var(--accent); }
+  .flow-group-label.then { color: var(--green); }
+
+  .flow-items { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  .item-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .item-chip:hover { transform: scale(1.03); }
+  .item-chip.ant {
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid rgba(124,108,255,.15);
+  }
+  .item-chip.con {
+    background: var(--green-soft); color: var(--green);
+    border: 1px solid rgba(52,211,153,.15);
+  }
+  .item-chip .chip-icon { font-size: 13px; }
+
+  /* Arrow connector */
+  .flow-arrow {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 0 4px; flex-shrink: 0;
+  }
+  .flow-arrow-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, rgba(124,108,255,.12), rgba(52,211,153,.12));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--text);
+  }
+  .flow-arrow-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--muted); opacity: .6;
+  }
+
+  /* Metrics row */
+  .rule-metrics {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+    padding-top: 14px; border-top: 1px solid rgba(38,44,68,.5);
+  }
+
+  .metric {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .metric-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--muted);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .metric-value { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+
+  /* Confidence ring */
+  .conf-ring {
+    position: relative; width: 38px; height: 38px; flex-shrink: 0;
+  }
+  .conf-ring svg { transform: rotate(-90deg); }
+  .conf-ring-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; color: var(--text);
+  }
+
+  /* Lift indicator */
+  .lift-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+  .lift-strong  { background: var(--green-soft); color: var(--green); }
+  .lift-moderate { background: var(--yellow-soft); color: var(--yellow); }
+  .lift-weak    { background: var(--accent2-soft); color: var(--accent2); }
+
+  /* Insight text */
+  .rule-insight {
+    margin-top: 12px; padding: 10px 14px;
+    background: rgba(27,31,46,.6); border-radius: 10px;
+    font-size: 12px; color: var(--muted); line-height: 1.6;
+    border-left: 3px solid var(--accent);
+  }
+  .rule-insight em { color: var(--text); font-style: normal; font-weight: 600; }
+
+  /* Confidence + support bar combo */
+  .metric-bar-wrap { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .metric-bar {
+    flex: 1; height: 6px; background: var(--surface3);
+    border-radius: 3px; overflow: hidden; max-width: 100px;
+  }
+  .metric-bar-fill {
+    height: 100%; border-radius: 3px; transition: width .4s ease;
+  }
+  .metric-bar-fill.conf { background: linear-gradient(90deg, var(--accent), #9b8cff); }
+  .metric-bar-fill.supp { background: linear-gradient(90deg, var(--yellow), #fcd34d); }
+
+  /* ── Table view ─────────────────────────────────────────────────── */
+  .table-tag {
+    display: inline-block; padding: 3px 9px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; margin: 1px 2px;
+  }
+  .table-tag.ant { background: var(--accent-soft); color: var(--accent); }
+  .table-tag.con { background: var(--green-soft); color: var(--green); }
+  .tbl-conf-bar {
+    width: 52px; height: 5px; background: var(--surface3);
+    border-radius: 3px; overflow: hidden; flex-shrink: 0;
+  }
+  .tbl-conf-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), #9b8cff);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Header -->
-<div class="flex gap-2 mb-4">
-  <div>
-    <div class="page-title">Association Rules</div>
+<div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+  <div class="page-header" style="margin-bottom:0">
+    <div class="page-title">Hành vi mua hàng</div>
     <div class="page-sub">
       Run #{{ run.id }} &bull;
       {% if run.algorithm == 'apriori' %}Apriori
       {% elif run.algorithm == 'apriori_ht' %}Apriori + Hash Tree
       {% else %}FP-Growth{% endif %}
       &bull; min_sup={{ run.min_support }} &bull; min_conf={{ run.min_confidence }}
+      &bull; {{ run.n_transactions }} giao dịch
     </div>
   </div>
   <div class="ml-auto">
@@ -22,122 +205,265 @@
 <!-- Stats row -->
 <div class="stat-grid mb-4" style="grid-template-columns:repeat(4,1fr)">
   <div class="stat-card">
-    <div class="stat-label">Giao dịch</div>
+    <div class="stat-label">Giao dịch phân tích</div>
     <div class="stat-value accent">{{ run.n_transactions }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Frequent Itemsets</div>
+    <div class="stat-label">Tổ hợp phổ biến</div>
     <div class="stat-value green">{{ run.n_itemsets }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Association Rules</div>
+    <div class="stat-label">Quy luật phát hiện</div>
     <div class="stat-value yellow">{{ run.n_rules }}</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Thời gian chạy</div>
+    <div class="stat-label">Thời gian phân tích</div>
     <div class="stat-value accent2">{{ "%.2f"|format(run.exec_time) }}s</div>
   </div>
 </div>
 
-<!-- Sort & search bar -->
-<div class="card mb-4" style="padding:14px 20px">
-  <div class="flex gap-2">
-    <span style="font-size:13px;color:var(--muted);align-self:center">Sắp xếp theo:</span>
+<!-- Toolbar: sort + view toggle -->
+<div class="card mb-4" style="padding:0">
+  <div class="toolbar">
+    <span style="font-size:12px;color:var(--muted);font-weight:600">Sắp xếp:</span>
     <a href="{{ url_for('rules_page', run_id=run.id, sort='confidence') }}"
-       class="btn btn-ghost {% if sort=='confidence' %}btn-primary{% endif %}"
-       style="padding:6px 12px;font-size:12px">Confidence</a>
+       class="sort-btn {% if sort=='confidence' %}active{% endif %}">Confidence</a>
     <a href="{{ url_for('rules_page', run_id=run.id, sort='lift') }}"
-       class="btn btn-ghost {% if sort=='lift' %}btn-primary{% endif %}"
-       style="padding:6px 12px;font-size:12px">Lift</a>
+       class="sort-btn {% if sort=='lift' %}active{% endif %}">Lift</a>
     <a href="{{ url_for('rules_page', run_id=run.id, sort='support') }}"
-       class="btn btn-ghost {% if sort=='support' %}btn-primary{% endif %}"
-       style="padding:6px 12px;font-size:12px">Support</a>
-    <div class="ml-auto" style="font-size:13px;color:var(--muted)">
-      Trang {{ rules.page }}/{{ rules.pages }} ({{ rules.total }} rules)
+       class="sort-btn {% if sort=='support' %}active{% endif %}">Support</a>
+
+    <div class="ml-auto flex gap-2">
+      <span style="font-size:12px;color:var(--muted);font-weight:500;align-self:center">
+        Trang {{ rules.page }}/{{ rules.pages }} &bull; {{ rules.total }} rules
+      </span>
+      <div class="view-toggle">
+        <button class="view-btn active" id="view-cards-btn" onclick="setView('cards')">🃏 Thẻ</button>
+        <button class="view-btn" id="view-table-btn" onclick="setView('table')">📋 Bảng</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Rules table -->
-<div class="card">
-  {% if rules.items %}
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Antecedent (nếu mua...)</th>
-          <th>→</th>
-          <th>Consequent (thì mua...)</th>
-          <th>Support</th>
-          <th>Confidence</th>
-          <th>Lift</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rule in rules.items %}
-        <tr>
-          <td style="color:var(--muted)">{{ loop.index + (rules.page-1)*25 }}</td>
-          <td>
+{% if rules.items %}
+
+<!-- ══ Card view ══════════════════════════════════════════════════ -->
+<div id="view-cards" class="rules-grid">
+  {% for rule in rules.items %}
+  {% set idx = loop.index + (rules.page-1)*25 %}
+  {% set conf_pct = (rule.confidence * 100)|round|int %}
+  {% set sup_pct = ((rule.support / run.n_transactions) * 100)|round(1) %}
+  <div class="rule-card">
+    <div class="rule-card-accent"></div>
+    <div class="rule-card-body">
+      <div class="rule-num">#{{ idx }}</div>
+
+      <!-- Flow: Antecedent → Consequent -->
+      <div class="rule-flow">
+        <div class="flow-group">
+          <div class="flow-group-label buy">🛒 Khách mua</div>
+          <div class="flow-items">
             {% for item in rule.antecedent %}
-              <span style="display:inline-block;background:rgba(108,99,255,.12);color:var(--accent);
-                            padding:2px 7px;border-radius:4px;font-size:11px;margin:1px">
-                {{ item }}
-              </span>
+            <span class="item-chip ant"><span class="chip-icon">📦</span> {{ item }}</span>
             {% endfor %}
-          </td>
-          <td style="color:var(--muted);font-size:18px">→</td>
-          <td>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <div class="flow-arrow-icon">→</div>
+          <div class="flow-arrow-label">thường mua thêm</div>
+        </div>
+
+        <div class="flow-group">
+          <div class="flow-group-label then">✨ Sẽ mua thêm</div>
+          <div class="flow-items">
             {% for item in rule.consequent %}
-              <span style="display:inline-block;background:rgba(67,217,173,.12);color:var(--green);
-                            padding:2px 7px;border-radius:4px;font-size:11px;margin:1px">
-                {{ item }}
-              </span>
+            <span class="item-chip con"><span class="chip-icon">🎁</span> {{ item }}</span>
             {% endfor %}
-          </td>
-          <td>{{ rule.support }}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:60px;height:6px;background:var(--surface2);border-radius:3px">
-                <div style="width:{{ (rule.confidence*100)|round|int }}%;height:100%;background:var(--accent);border-radius:3px"></div>
-              </div>
-              {{ "%.3f"|format(rule.confidence) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="rule-metrics">
+        <div class="metric">
+          <div class="metric-label">📊 Support</div>
+          <div class="metric-bar-wrap">
+            <span class="metric-value" style="font-size:15px;color:var(--yellow)">{{ rule.support }}</span>
+            <span style="font-size:11px;color:var(--muted)">({{ sup_pct }}%)</span>
+          </div>
+          <div class="metric-bar-wrap">
+            <div class="metric-bar" style="max-width:80px">
+              <div class="metric-bar-fill supp" style="width:{{ [sup_pct * 5, 100]|min }}%"></div>
             </div>
-          </td>
-          <td>
-            <span style="color:{% if rule.lift > 2 %}var(--green){% elif rule.lift > 1 %}var(--yellow){% else %}var(--accent2){% endif %}">
-              {{ "%.3f"|format(rule.lift) }}
-            </span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+            <span style="font-size:10px;color:var(--muted)">{{ rule.support }}/{{ run.n_transactions }}</span>
+          </div>
+        </div>
 
-  <!-- Pagination -->
-  <div class="pagination">
-    {% if rules.has_prev %}
-    <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.prev_num, sort=sort) }}">‹</a>
-    {% endif %}
-    {% for p in rules.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-      {% if p %}
-        <a class="page-link {% if p == rules.page %}active{% endif %}"
-           href="{{ url_for('rules_page', run_id=run.id, page=p, sort=sort) }}">{{ p }}</a>
-      {% else %}
-        <span class="page-link">…</span>
-      {% endif %}
-    {% endfor %}
-    {% if rules.has_next %}
-    <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.next_num, sort=sort) }}">›</a>
-    {% endif %}
-  </div>
+        <div class="metric">
+          <div class="metric-label">🎯 Confidence</div>
+          <div class="flex gap-2" style="align-items:center">
+            <div class="conf-ring">
+              <svg width="38" height="38" viewBox="0 0 38 38">
+                <circle cx="19" cy="19" r="15" fill="none" stroke="var(--surface3)" stroke-width="3"/>
+                <circle cx="19" cy="19" r="15" fill="none"
+                  stroke="{% if conf_pct >= 80 %}var(--green){% elif conf_pct >= 50 %}var(--accent){% else %}var(--yellow){% endif %}"
+                  stroke-width="3" stroke-linecap="round"
+                  stroke-dasharray="{{ (conf_pct * 94.25 / 100)|round(1) }} 94.25"/>
+              </svg>
+              <div class="conf-ring-text">{{ conf_pct }}%</div>
+            </div>
+            <div>
+              <div class="metric-value" style="font-size:15px;color:{% if conf_pct >= 80 %}var(--green){% elif conf_pct >= 50 %}var(--accent){% else %}var(--yellow){% endif %}">
+                {{ "%.1f"|format(rule.confidence * 100) }}%
+              </div>
+              <div style="font-size:10px;color:var(--muted)">xác suất mua thêm</div>
+            </div>
+          </div>
+        </div>
 
-  {% else %}
-  <div class="empty-state">
-    <div class="icon">📋</div>
-    <div>Không có rules nào thỏa mãn điều kiện.</div>
+        <div class="metric">
+          <div class="metric-label">⚡ Lift</div>
+          <div style="margin-top:2px">
+            {% if rule.lift > 3 %}
+            <span class="lift-badge lift-strong">🔥 {{ "%.2f"|format(rule.lift) }}x</span>
+            <div style="font-size:10px;color:var(--green);margin-top:4px;font-weight:600">Rất mạnh</div>
+            {% elif rule.lift > 1.5 %}
+            <span class="lift-badge lift-strong">📈 {{ "%.2f"|format(rule.lift) }}x</span>
+            <div style="font-size:10px;color:var(--green);margin-top:4px;font-weight:600">Liên kết mạnh</div>
+            {% elif rule.lift > 1 %}
+            <span class="lift-badge lift-moderate">↗️ {{ "%.2f"|format(rule.lift) }}x</span>
+            <div style="font-size:10px;color:var(--yellow);margin-top:4px;font-weight:600">Liên kết vừa</div>
+            {% else %}
+            <span class="lift-badge lift-weak">↘️ {{ "%.2f"|format(rule.lift) }}x</span>
+            <div style="font-size:10px;color:var(--accent2);margin-top:4px;font-weight:600">Liên kết yếu</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Natural language insight -->
+      <div class="rule-insight">
+        💡 Trong <em>{{ run.n_transactions }}</em> giao dịch, có <em>{{ rule.support }}</em> lần
+        (<em>{{ sup_pct }}%</em>) khách hàng mua
+        <em>{{ rule.antecedent | join(', ') }}</em> cùng với
+        <em>{{ rule.consequent | join(', ') }}</em>.
+        Khi đã mua <em>{{ rule.antecedent | join(', ') }}</em>,
+        xác suất mua thêm <em>{{ rule.consequent | join(', ') }}</em>
+        là <em>{{ "%.1f"|format(rule.confidence * 100) }}%</em>
+        — gấp <em>{{ "%.1f"|format(rule.lift) }}x</em> so với mua ngẫu nhiên.
+      </div>
+    </div>
   </div>
+  {% endfor %}
+</div>
+
+<!-- ══ Table view (hidden by default) ════════════════════════════ -->
+<div id="view-table" style="display:none">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Khách mua (Antecedent)</th>
+            <th style="text-align:center"></th>
+            <th>Sẽ mua thêm (Consequent)</th>
+            <th>Support</th>
+            <th>Confidence</th>
+            <th>Lift</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in rules.items %}
+          {% set idx = loop.index + (rules.page-1)*25 %}
+          <tr>
+            <td style="color:var(--muted);font-size:12px">{{ idx }}</td>
+            <td>
+              {% for item in rule.antecedent %}
+              <span class="table-tag ant">{{ item }}</span>
+              {% endfor %}
+            </td>
+            <td style="text-align:center;color:var(--muted);font-size:18px;opacity:.3">→</td>
+            <td>
+              {% for item in rule.consequent %}
+              <span class="table-tag con">{{ item }}</span>
+              {% endfor %}
+            </td>
+            <td><strong>{{ rule.support }}</strong></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="tbl-conf-bar">
+                  <div class="tbl-conf-fill" style="width:{{ (rule.confidence*100)|round|int }}%"></div>
+                </div>
+                <span style="font-weight:600">{{ "%.1f"|format(rule.confidence*100) }}%</span>
+              </div>
+            </td>
+            <td>
+              <span style="font-weight:700;color:{% if rule.lift > 2 %}var(--green){% elif rule.lift > 1 %}var(--yellow){% else %}var(--accent2){% endif %}">
+                {{ "%.2f"|format(rule.lift) }}x
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination" style="margin-top:20px">
+  {% if rules.has_prev %}
+  <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.prev_num, sort=sort) }}">‹</a>
+  {% endif %}
+  {% for p in rules.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+      <a class="page-link {% if p == rules.page %}active{% endif %}"
+         href="{{ url_for('rules_page', run_id=run.id, page=p, sort=sort) }}">{{ p }}</a>
+    {% else %}
+      <span class="page-link">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if rules.has_next %}
+  <a class="page-link" href="{{ url_for('rules_page', run_id=run.id, page=rules.next_num, sort=sort) }}">›</a>
   {% endif %}
 </div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">📋</div>
+    <div class="desc">Không có rules nào thỏa mãn điều kiện.</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setView(mode) {
+  const cards = document.getElementById('view-cards');
+  const table = document.getElementById('view-table');
+  const btnCards = document.getElementById('view-cards-btn');
+  const btnTable = document.getElementById('view-table-btn');
+
+  if (mode === 'cards') {
+    cards.style.display = '';
+    table.style.display = 'none';
+    btnCards.classList.add('active');
+    btnTable.classList.remove('active');
+  } else {
+    cards.style.display = 'none';
+    table.style.display = '';
+    btnCards.classList.remove('active');
+    btnTable.classList.add('active');
+  }
+  localStorage.setItem('rules-view', mode);
+}
+
+// Restore view preference
+const saved = localStorage.getItem('rules-view');
+if (saved === 'table') setView('table');
+</script>
 {% endblock %}

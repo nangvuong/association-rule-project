@@ -1,13 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Giao dịch – ARM Demo{% endblock %}
 
+{% block head %}
+<style>
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 14px;
+    padding: 36px 20px; text-align: center; cursor: pointer;
+    transition: all .3s; margin-bottom: 16px; position: relative;
+    background: rgba(27,31,46,.4);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent); background: rgba(124,108,255,.04);
+  }
+  .upload-zone .uz-icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-zone .uz-label { font-size: 13px; color: var(--muted); }
+  .upload-zone .uz-hint { font-size: 11px; color: var(--muted); opacity: .6; margin-top: 4px; }
+  .upload-zone .uz-file {
+    font-size: 14px; font-weight: 700; color: var(--green); margin-top: 8px;
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+
+  .pipeline-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 0; border-bottom: 1px solid rgba(38,44,68,.5); font-size: 13px;
+  }
+  .pipeline-step:last-child { border-bottom: none; }
+  .step-icon {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+    background: var(--surface2); color: var(--muted); transition: all .3s;
+  }
+  .step-icon.done { background: var(--green-soft); color: var(--green); }
+  .step-icon.active { background: var(--accent-soft); color: var(--accent); animation: pulse 1.2s infinite; }
+  .step-icon.error { background: var(--accent2-soft); color: var(--accent2); }
+  .step-name { font-weight: 600; }
+  .step-detail { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+  .step-detail .removed { color: var(--accent2); font-weight: 600; }
+  .step-detail .kept { color: var(--green); font-weight: 600; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 16px;
+  }
+  .summary-item {
+    background: var(--surface2); border-radius: 10px; padding: 14px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .summary-item .val { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .summary-item .lbl { font-size: 10px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+
+  .sample-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  .sample-table th { background: var(--surface2); padding: 7px 12px; text-align: left; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; border-radius: 6px; }
+  .sample-table td { padding: 7px 12px; border-bottom: 1px solid rgba(38,44,68,.4); }
+
+  .config-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .config-row .form-group { margin-bottom: 10px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="flex gap-2 mb-4">
-  <div>
+<div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+  <div class="page-header" style="margin-bottom:0">
     <div class="page-title">Giao dịch</div>
     <div class="page-sub">Quản lý dữ liệu giao dịch trong database</div>
   </div>
-  <div class="ml-auto flex gap-2">
+  <div class="ml-auto flex gap-2" style="flex-wrap:wrap">
+    <button class="btn btn-ghost" onclick="document.getElementById('upload-modal').style.display='flex'">
+      📤 Upload file
+    </button>
     <button class="btn btn-ghost" onclick="document.getElementById('import-modal').style.display='flex'">
       📂 Import pkl
     </button>
@@ -19,7 +83,7 @@
 
 <!-- Table -->
 <div class="card">
-  <div class="card-title">Danh sách giao dịch ({{ txs.total }} tổng cộng)</div>
+  <div class="card-title">Danh sách giao dịch &nbsp;·&nbsp; {{ txs.total }} tổng cộng</div>
   {% if txs.items %}
   <div class="table-wrap">
     <table>
@@ -29,10 +93,10 @@
       <tbody>
         {% for tx in txs.items %}
         <tr id="row-{{ tx.id }}">
-          <td>{{ tx.id }}</td>
+          <td style="color:var(--muted)">{{ tx.id }}</td>
           <td><strong>{{ tx.invoice_no }}</strong></td>
-          <td>{{ tx.items|length }}</td>
-          <td style="max-width:400px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">
+          <td><span class="badge" style="background:var(--surface3);color:var(--text)">{{ tx.items|length }}</span></td>
+          <td style="max-width:380px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted)">
             {{ tx.items | join(', ') }}
           </td>
           <td><span class="badge badge-{{ tx.source }}">{{ tx.source }}</span></td>
@@ -46,8 +110,6 @@
       </tbody>
     </table>
   </div>
-
-  <!-- Pagination -->
   <div class="pagination">
     {% if txs.has_prev %}
     <a class="page-link" href="{{ url_for('transactions_page', page=txs.prev_num) }}">‹</a>
@@ -67,16 +129,16 @@
   {% else %}
   <div class="empty-state">
     <div class="icon">🧾</div>
-    <div>Chưa có giao dịch. Hãy thêm hoặc import dữ liệu!</div>
+    <div class="desc">Chưa có giao dịch.<br>Hãy thêm thủ công hoặc upload file!</div>
   </div>
   {% endif %}
 </div>
 
-<!-- ── Modal: Thêm giao dịch ──────────────────────────────────────── -->
-<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center">
-  <div class="card" style="width:480px;max-height:90vh;overflow-y:auto">
+<!-- ── Modal: Thêm giao dịch ── -->
+<div id="add-modal" class="modal-overlay">
+  <div class="card" style="width:500px;max-height:90vh;overflow-y:auto">
     <div class="flex gap-2 mb-4">
-      <div class="card-title" style="margin:0">Thêm giao dịch mới</div>
+      <div class="card-title" style="margin:0">＋ Thêm giao dịch mới</div>
       <button class="ml-auto btn btn-ghost" style="padding:4px 10px" onclick="document.getElementById('add-modal').style.display='none'">✕</button>
     </div>
     <div class="form-group">
@@ -95,22 +157,94 @@
   </div>
 </div>
 
-<!-- ── Modal: Import pkl ───────────────────────────────────────────── -->
-<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center">
-  <div class="card" style="width:420px">
+<!-- ── Modal: Import pkl ── -->
+<div id="import-modal" class="modal-overlay">
+  <div class="card" style="width:440px">
     <div class="flex gap-2 mb-4">
-      <div class="card-title" style="margin:0">Import từ pkl</div>
+      <div class="card-title" style="margin:0">📂 Import từ pkl</div>
       <button class="ml-auto btn btn-ghost" style="padding:4px 10px" onclick="document.getElementById('import-modal').style.display='none'">✕</button>
     </div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
       Import <code>data/processed/transaction_list.pkl</code> vào DB.<br>
-      ⚠️ Các giao dịch <em>imported</em> cũ sẽ bị xóa.
+      ⚠️ Các giao dịch <em>imported</em> cũ sẽ bị thay thế.
     </p>
     <div class="flex gap-2">
       <button class="btn btn-primary" onclick="importData()">Import</button>
       <button class="btn btn-ghost" onclick="document.getElementById('import-modal').style.display='none'">Hủy</button>
     </div>
     <div id="import-result" style="margin-top:12px;font-size:13px"></div>
+  </div>
+</div>
+
+<!-- ── Modal: Upload file ── -->
+<div id="upload-modal" class="modal-overlay">
+  <div class="card" style="width:620px;max-height:92vh;overflow-y:auto">
+    <div class="flex gap-2 mb-4">
+      <div class="card-title" style="margin:0">📤 Upload & xử lý file giao dịch</div>
+      <button class="ml-auto btn btn-ghost" style="padding:4px 10px" onclick="closeUploadModal()">✕</button>
+    </div>
+
+    <div id="upload-form">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Upload file <strong>.xlsx</strong> hoặc <strong>.csv</strong> có cấu trúc tương tự
+        <a href="https://archive.ics.uci.edu/dataset/502/online+retail+ii" target="_blank" style="color:var(--accent)">Online Retail II (UCI)</a>.<br>
+        Yêu cầu tối thiểu: <code>Invoice</code>, <code>Description</code>.
+      </p>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="upload-file" accept=".xlsx,.xls,.csv" onchange="onFileSelected(this)">
+        <div class="uz-icon">📁</div>
+        <div class="uz-label">Kéo thả file hoặc bấm để chọn</div>
+        <div class="uz-hint">.xlsx, .xls, .csv — tối đa 100 MB</div>
+        <div class="uz-file" id="upload-filename"></div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">
+        ⚙️ Cấu hình tiền xử lý
+      </div>
+      <div class="config-row">
+        <div class="form-group">
+          <label>Min Support Count</label>
+          <input type="number" id="cfg-min-support" value="50" min="1">
+        </div>
+        <div class="form-group">
+          <label>Min Support %</label>
+          <input type="number" id="cfg-min-pct" value="0.1" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <label>Min Items/Transaction</label>
+          <input type="number" id="cfg-min-items" value="2" min="1">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px">
+          <input type="checkbox" id="cfg-replace" checked style="width:auto;accent-color:var(--accent)">
+          Xóa dữ liệu file_upload cũ trước khi import
+        </label>
+      </div>
+
+      <div class="flex gap-2">
+        <button class="btn btn-primary" id="upload-btn" onclick="uploadFile()" disabled>
+          🚀 Upload & Xử lý
+        </button>
+        <button class="btn btn-ghost" onclick="closeUploadModal()">Hủy</button>
+      </div>
+    </div>
+
+    <div id="upload-progress" style="display:none">
+      <div id="upload-pipeline-steps"></div>
+      <div id="upload-summary" style="display:none"></div>
+      <div id="upload-error" style="display:none;background:var(--accent2-soft);border:1px solid rgba(255,107,138,.2);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:13px;color:var(--accent2)"></div>
+      <div class="flex gap-2" style="margin-top:18px">
+        <button class="btn btn-success" id="upload-done-btn" style="display:none" onclick="location.reload()">
+          ✓ Xong — Tải lại trang
+        </button>
+        <button class="btn btn-ghost" id="upload-retry-btn" style="display:none" onclick="resetUploadModal()">
+          ↻ Thử lại
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -122,51 +256,133 @@ async function addTransaction() {
   const raw     = document.getElementById('new-items').value;
   const items   = raw.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
   const el      = document.getElementById('add-result');
-
-  if (!invoice || !items.length) {
-    showToast('Vui lòng nhập Invoice No và ít nhất 1 item', 'error'); return;
-  }
+  if (!invoice || !items.length) { showToast('Vui lòng nhập Invoice No và ít nhất 1 item', 'error'); return; }
   try {
-    const d = await apiCall('/api/transactions', {
-      method: 'POST',
-      body: JSON.stringify({invoice_no: invoice, items})
-    });
+    await apiCall('/api/transactions', { method:'POST', body:JSON.stringify({invoice_no:invoice, items}) });
     showToast(`✓ Đã thêm ${invoice}`);
-    el.style.color = 'var(--green)';
-    el.textContent = `✓ Thêm thành công ${invoice} (${items.length} items)`;
-    document.getElementById('new-invoice').value = '';
-    document.getElementById('new-items').value   = '';
-    setTimeout(() => location.reload(), 1200);
-  } catch(e) {
-    showToast(e.message, 'error');
-    el.style.color = 'var(--accent2)';
-    el.textContent = '✗ ' + e.message;
-  }
+    el.style.color='var(--green)'; el.textContent=`✓ Thêm thành công ${invoice} (${items.length} items)`;
+    document.getElementById('new-invoice').value=''; document.getElementById('new-items').value='';
+    setTimeout(()=>location.reload(),1200);
+  } catch(e) { showToast(e.message,'error'); el.style.color='var(--accent2)'; el.textContent='✗ '+e.message; }
 }
 
 async function deleteTx(id) {
-  if (!confirm('Xóa giao dịch #' + id + '?')) return;
-  try {
-    await apiCall(`/api/transactions/${id}`, {method:'DELETE'});
-    document.getElementById('row-' + id).remove();
-    showToast('✓ Đã xóa');
-  } catch(e) { showToast(e.message, 'error'); }
+  if (!confirm('Xóa giao dịch #'+id+'?')) return;
+  try { await apiCall(`/api/transactions/${id}`,{method:'DELETE'}); document.getElementById('row-'+id).remove(); showToast('✓ Đã xóa'); }
+  catch(e) { showToast(e.message,'error'); }
 }
 
 async function importData() {
-  const el = document.getElementById('import-result');
-  el.textContent = 'Đang import...';
-  try {
-    const d = await apiCall('/api/transactions/import', {method:'POST'});
-    showToast(`✓ Đã import ${d.imported} transactions`);
-    el.style.color = 'var(--green)';
-    el.textContent = `✓ Đã import ${d.imported} giao dịch`;
-    setTimeout(() => location.reload(), 1500);
-  } catch(e) {
-    showToast(e.message, 'error');
-    el.style.color = 'var(--accent2)';
-    el.textContent = '✗ ' + e.message;
+  const el=document.getElementById('import-result'); el.textContent='Đang import...';
+  try { const d=await apiCall('/api/transactions/import',{method:'POST'}); showToast(`✓ Đã import ${d.imported} transactions`); el.style.color='var(--green)'; el.textContent=`✓ Đã import ${d.imported} giao dịch`; setTimeout(()=>location.reload(),1500); }
+  catch(e) { showToast(e.message,'error'); el.style.color='var(--accent2)'; el.textContent='✗ '+e.message; }
+}
+
+// ── Upload ─────────────────────────────────────────────────────────
+function onFileSelected(input) {
+  const name=input.files[0]?.name||'';
+  document.getElementById('upload-filename').textContent=name;
+  document.getElementById('upload-btn').disabled=!name;
+  if(name) document.getElementById('upload-zone').style.borderColor='var(--green)';
+}
+
+const zone=document.getElementById('upload-zone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over')});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag-over');if(e.dataTransfer.files.length){document.getElementById('upload-file').files=e.dataTransfer.files;onFileSelected(document.getElementById('upload-file'));}});
+
+function closeUploadModal(){document.getElementById('upload-modal').style.display='none';resetUploadModal();}
+function resetUploadModal(){
+  document.getElementById('upload-form').style.display='';
+  document.getElementById('upload-progress').style.display='none';
+  document.getElementById('upload-summary').style.display='none';
+  document.getElementById('upload-error').style.display='none';
+  document.getElementById('upload-done-btn').style.display='none';
+  document.getElementById('upload-retry-btn').style.display='none';
+  document.getElementById('upload-pipeline-steps').innerHTML='';
+}
+
+const STEPS=[
+  {id:'load',label:'📂 Đọc file',num:'1'},
+  {id:'clean',label:'🧹 Làm sạch dữ liệu',num:'2'},
+  {id:'filter',label:'🔍 Lọc item hiếm',num:'3'},
+  {id:'transform',label:'🔄 Chuyển đổi giao dịch',num:'4'},
+  {id:'import',label:'💾 Lưu vào database',num:'5'},
+];
+
+function renderSteps(activeIdx){
+  document.getElementById('upload-pipeline-steps').innerHTML=STEPS.map((s,i)=>{
+    let cls=i<activeIdx?'done':(i===activeIdx?'active':'');
+    let txt=i<activeIdx?'✓':s.num;
+    return `<div class="pipeline-step" id="step-${s.id}"><div class="step-icon ${cls}">${txt}</div><div><div class="step-name">${s.label}</div><div class="step-detail" id="step-detail-${s.id}"></div></div></div>`;
+  }).join('');
+}
+
+async function uploadFile(){
+  if(!document.getElementById('upload-file').files.length){showToast('Chưa chọn file','error');return;}
+  document.getElementById('upload-form').style.display='none';
+  document.getElementById('upload-progress').style.display='';
+  renderSteps(0);
+
+  const fd=new FormData();
+  fd.append('file',document.getElementById('upload-file').files[0]);
+  fd.append('min_support_count',document.getElementById('cfg-min-support').value);
+  fd.append('min_support_percentage',document.getElementById('cfg-min-pct').value);
+  fd.append('min_items_per_transaction',document.getElementById('cfg-min-items').value);
+  fd.append('replace_old',document.getElementById('cfg-replace').checked?'true':'false');
+
+  try{
+    const res=await fetch('/api/transactions/upload',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok){
+      if(data.stats)showResults(data.stats,true);
+      document.getElementById('upload-error').style.display='';
+      document.getElementById('upload-error').innerHTML=`<strong>✗ Lỗi:</strong> ${data.error}`;
+      document.getElementById('upload-retry-btn').style.display='';
+      showToast(data.error,'error');return;
+    }
+    showResults(data,false);
+    document.getElementById('upload-done-btn').style.display='';
+    showToast(`✓ Đã import ${data.imported} giao dịch thành công!`);
+  }catch(e){
+    renderSteps(0);
+    const ic=document.querySelector('#step-load .step-icon');
+    if(ic){ic.className='step-icon error';ic.textContent='✗';}
+    document.getElementById('upload-error').style.display='';
+    document.getElementById('upload-error').textContent='✗ '+e.message;
+    document.getElementById('upload-retry-btn').style.display='';
+    showToast(e.message,'error');
   }
+}
+
+function showResults(d,hasError){
+  if(d.original_rows) setDone('load',`${d.original_rows.toLocaleString()} dòng, ${d.columns?.length||'?'} cột`);
+  if(d.cleaning){let h='';d.cleaning.forEach(s=>{h+=`<div>${s.step}: <span class="removed">-${s.removed.toLocaleString()}</span> → <span class="kept">${s.remaining.toLocaleString()}</span> còn lại</div>`;});setDone('clean',h,true);}
+  if(d.filtering){const f=d.filtering;setDone('filter',`Ngưỡng: ${f.threshold} | Trước: ${f.total_unique_items_before} items → giữ: <span class="kept">${f.common_items_kept}</span>, xóa: <span class="removed">${f.rare_items_removed}</span> | <span class="removed">-${f.rows_removed.toLocaleString()}</span> dòng`,true);}
+  if(d.transformation){const t=d.transformation;setDone('transform',`${t.total_invoices.toLocaleString()} invoices → <span class="kept">${t.after_min_items_filter.toLocaleString()}</span> giao dịch (min ${t.min_items} items) | TB ${t.avg_items_per_transaction} items | ${t.unique_items} sản phẩm`,true);}
+  if(d.imported){let x=d.deleted_old?`Đã xóa ${d.deleted_old} cũ. `:'';setDone('import',`${x}<span class="kept">${d.imported.toLocaleString()}</span> giao dịch đã lưu vào DB`,true);}
+  else if(hasError){const s=document.querySelector('#step-import .step-icon');if(s){s.className='step-icon error';s.textContent='✗';}}
+
+  if(d.imported||d.transformation){
+    const el=document.getElementById('upload-summary');el.style.display='';
+    let h='<div class="summary-grid">';
+    h+=`<div class="summary-item"><div class="val">${(d.original_rows||0).toLocaleString()}</div><div class="lbl">Dòng gốc</div></div>`;
+    h+=`<div class="summary-item"><div class="val" style="color:var(--green)">${(d.imported||d.transformation?.after_min_items_filter||0).toLocaleString()}</div><div class="lbl">Giao dịch kết quả</div></div>`;
+    h+=`<div class="summary-item"><div class="val" style="color:var(--yellow)">${(d.transformation?.unique_items||0).toLocaleString()}</div><div class="lbl">Sản phẩm</div></div>`;
+    h+='</div>';
+    if(d.sample_transactions?.length){
+      h+='<div style="margin-top:14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Mẫu giao dịch</div>';
+      h+='<table class="sample-table"><thead><tr><th>Invoice</th><th>Items (tối đa 10)</th><th>Tổng</th></tr></thead><tbody>';
+      d.sample_transactions.forEach(s=>{h+=`<tr><td><strong>${s.invoice}</strong></td><td style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)">${s.items.join(', ')}</td><td>${s.total_items}</td></tr>`;});
+      h+='</tbody></table>';
+    }
+    el.innerHTML=h;
+  }
+}
+
+function setDone(id,detail,isHtml){
+  const s=document.querySelector(`#step-${id} .step-icon`);if(s){s.className='step-icon done';s.textContent='✓';}
+  const d=document.getElementById(`step-detail-${id}`);if(d){if(isHtml)d.innerHTML=detail;else d.textContent=detail;}
 }
 </script>
 {% endblock %}

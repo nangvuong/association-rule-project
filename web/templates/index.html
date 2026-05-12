@@ -2,8 +2,10 @@
 {% block title %}Dashboard – ARM Demo{% endblock %}
 
 {% block content %}
-<div class="page-title">Dashboard</div>
-<div class="page-sub">Tổng quan hệ thống Association Rule Mining</div>
+<div class="page-header">
+  <div class="page-title">Dashboard</div>
+  <div class="page-sub">Tổng quan hệ thống Association Rule Mining</div>
+</div>
 
 <!-- Stat cards -->
 <div class="stat-grid" id="stat-grid">
@@ -25,12 +27,12 @@
   </div>
 </div>
 
-<!-- Quick mine panel -->
+<!-- Quick mine + import panels -->
 <div class="row mb-4">
   <div class="col">
-    <div class="card">
+    <div class="card" style="height:100%">
       <div class="card-title">⚡ Khai phá nhanh</div>
-      <div class="row">
+      <div class="row" style="gap:12px">
         <div class="col">
           <div class="form-group">
             <label>Thuật toán</label>
@@ -54,18 +56,18 @@
           </div>
         </div>
       </div>
-      <button class="btn btn-primary" id="q-mine-btn" onclick="quickMine()">
+      <button class="btn btn-primary" id="q-mine-btn" onclick="quickMine()" style="margin-top:4px">
         ⚙️ Chạy khai phá
       </button>
       <div id="q-result" style="margin-top:14px;font-size:13px;color:var(--muted)"></div>
     </div>
   </div>
 
-  <div class="col">
-    <div class="card">
+  <div class="col" style="max-width:340px">
+    <div class="card" style="height:100%">
       <div class="card-title">📥 Import dữ liệu</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
-        Import toàn bộ transactions từ file <code>data/processed/transaction_list.pkl</code> vào database.
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Import transactions từ file <code>transaction_list.pkl</code> đã xử lý vào database.
       </p>
       <button class="btn btn-ghost" onclick="importData()">📂 Import từ pkl</button>
       <div id="import-result" style="margin-top:12px;font-size:13px;color:var(--muted)"></div>
@@ -82,13 +84,13 @@
       <thead>
         <tr>
           <th>#</th><th>Thuật toán</th><th>Min Sup</th><th>Min Conf</th>
-          <th>Itemsets</th><th>Rules</th><th>Thời gian</th><th>Thao tác</th>
+          <th>Itemsets</th><th>Rules</th><th>Thời gian</th><th></th>
         </tr>
       </thead>
       <tbody>
         {% for run in latest_runs %}
         <tr>
-          <td>{{ run.id }}</td>
+          <td style="color:var(--muted)">{{ run.id }}</td>
           <td>
             {% if run.algorithm == 'apriori' %}
               <span class="badge badge-apriori">Apriori</span>
@@ -100,11 +102,11 @@
           </td>
           <td>{{ run.min_support }}</td>
           <td>{{ run.min_confidence }}</td>
-          <td>{{ run.n_itemsets }}</td>
-          <td>{{ run.n_rules }}</td>
-          <td>{{ "%.2f"|format(run.exec_time) }}s</td>
+          <td><strong>{{ run.n_itemsets }}</strong></td>
+          <td><strong>{{ run.n_rules }}</strong></td>
+          <td style="color:var(--muted)">{{ "%.2f"|format(run.exec_time) }}s</td>
           <td>
-            <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:4px 10px;font-size:12px">
+            <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">
               Xem rules →
             </a>
           </td>
@@ -116,7 +118,7 @@
   {% else %}
   <div class="empty-state">
     <div class="icon">⚙️</div>
-    <div>Chưa có lần khai phá nào. Hãy chạy khai phá để bắt đầu!</div>
+    <div class="desc">Chưa có lần khai phá nào.<br>Hãy chạy khai phá để bắt đầu!</div>
   </div>
   {% endif %}
 </div>
@@ -124,7 +126,7 @@
 
 {% block scripts %}
 <script>
-// Load thêm stats
+// Load stats
 fetch('/api/stats').then(r=>r.json()).then(d=>{
   document.getElementById('stat-itemsets').textContent = d.total_itemsets.toLocaleString();
   document.getElementById('stat-rules').textContent    = d.total_rules.toLocaleString();
@@ -146,7 +148,7 @@ async function quickMine() {
       })
     });
     showToast(`✓ Hoàn tất: ${data.n_rules} rules | ${data.exec_time}s`);
-    res.innerHTML = `✓ <strong>${data.n_itemsets}</strong> itemsets &bull; <strong>${data.n_rules}</strong> rules &bull; ${data.exec_time}s
+    res.innerHTML = `<span style="color:var(--green)">✓</span> <strong>${data.n_itemsets}</strong> itemsets &bull; <strong>${data.n_rules}</strong> rules &bull; ${data.exec_time}s
       &nbsp;<a href="/rules/${data.run_id}" style="color:var(--accent)">Xem kết quả →</a>`;
     setTimeout(() => location.reload(), 2000);
   } catch(e) {

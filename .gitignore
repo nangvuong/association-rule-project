@@ -219,3 +219,5 @@ __marimo__/
 
 # Dataset
 data/
+# Upload temp files
+data/uploads/

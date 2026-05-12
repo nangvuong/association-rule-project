@@ -2,13 +2,15 @@
 {% block title %}Khai phá – ARM Demo{% endblock %}
 
 {% block content %}
-<div class="page-title">Khai phá Itemsets & Rules</div>
-<div class="page-sub">Chạy thuật toán khai phá và quản lý kết quả</div>
+<div class="page-header">
+  <div class="page-title">Khai phá Itemsets & Rules</div>
+  <div class="page-sub">Chạy thuật toán khai phá và quản lý kết quả</div>
+</div>
 
 <!-- Run form -->
 <div class="card mb-4">
-  <div class="card-title">⚙️ Cấu hình & Chạy thuật toán</div>
-  <div class="row">
+  <div class="card-title">⚙️ Cấu hình & chạy thuật toán</div>
+  <div class="row" style="gap:14px">
     <div class="col">
       <div class="form-group">
         <label>Thuật toán</label>
@@ -21,7 +23,7 @@
     </div>
     <div class="col">
       <div class="form-group">
-        <label>Min Support (số giao dịch tuyệt đối)</label>
+        <label>Min Support (tuyệt đối)</label>
         <input type="number" id="m-minsup" value="100" min="10">
       </div>
     </div>
@@ -56,7 +58,7 @@
       <tbody id="runs-tbody">
         {% for run in runs %}
         <tr id="run-{{ run.id }}">
-          <td>{{ run.id }}</td>
+          <td style="color:var(--muted)">{{ run.id }}</td>
           <td>
             {% if run.algorithm == 'apriori' %}
               <span class="badge badge-apriori">Apriori</span>
@@ -69,16 +71,18 @@
           <td>{{ run.min_support }}</td>
           <td>{{ run.min_confidence }}</td>
           <td>{{ run.n_transactions }}</td>
-          <td>{{ run.n_itemsets }}</td>
-          <td>{{ run.n_rules }}</td>
-          <td>{{ "%.2f"|format(run.exec_time) }}s</td>
+          <td><strong>{{ run.n_itemsets }}</strong></td>
+          <td><strong>{{ run.n_rules }}</strong></td>
+          <td style="color:var(--muted)">{{ "%.2f"|format(run.exec_time) }}s</td>
           <td style="color:var(--muted);font-size:12px">{{ run.ran_at.strftime('%H:%M %d/%m') }}</td>
-          <td class="flex gap-2">
-            <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:4px 10px;font-size:12px">
-              Xem →
-            </a>
-            <button class="btn btn-danger" style="padding:4px 10px;font-size:12px"
-                    onclick="deleteRun({{ run.id }})">✕</button>
+          <td>
+            <div class="flex gap-2">
+              <a href="{{ url_for('rules_page', run_id=run.id) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">
+                Xem →
+              </a>
+              <button class="btn btn-danger" style="padding:5px 10px;font-size:12px"
+                      onclick="deleteRun({{ run.id }})">✕</button>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -88,7 +92,7 @@
   {% else %}
   <div class="empty-state">
     <div class="icon">⚙️</div>
-    <div>Chưa có lần khai phá nào. Hãy chạy thuật toán ở trên!</div>
+    <div class="desc">Chưa có lần khai phá nào.<br>Hãy chạy thuật toán ở trên!</div>
   </div>
   {% endif %}
 </div>
@@ -102,7 +106,6 @@ async function runMining() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Đang chạy...';
   status.textContent = 'Vui lòng chờ...';
-
   try {
     const data = await apiCall('/api/mine', {
       method: 'POST',
@@ -113,7 +116,7 @@ async function runMining() {
       })
     });
     showToast(`✓ ${data.n_itemsets} itemsets | ${data.n_rules} rules | ${data.exec_time}s`);
-    status.innerHTML = `<span style="color:var(--green)">✓ Hoàn tất: ${data.n_itemsets} itemsets, ${data.n_rules} rules (${data.exec_time}s)</span>`;
+    status.innerHTML = `<span style="color:var(--green)">✓ Hoàn tất:</span> ${data.n_itemsets} itemsets, ${data.n_rules} rules (${data.exec_time}s)`;
     setTimeout(() => location.reload(), 1500);
   } catch(e) {
     showToast(e.message, 'error');
